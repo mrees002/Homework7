@@ -1,0 +1,189 @@
+---
+title: "Homework 7"
+author: "Michael Rees"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+library(ggplot2)
+library(tidyverse)
+library(mosaic)
+library(MatchIt)
+```
+
+[Github](https://github.com/mrees002/Homework7)
+
+# **Problem 1**
+
+```{r}
+data = read.csv('armfold.csv')
+
+num_male <- sum(data$Sex == 'Male')
+num_female <- sum(data$Sex == 'Female')
+prop_male <- sum(data$Sex == 'Male' & data$LonR_fold == 1) /sum(data$Sex == 'Male')
+prop_female <- sum(data$Sex == 'Female' & data$LonR_fold == 1) /sum(data$Sex == 'Female')  
+prop_diff <- prop_male - prop_female
+
+error <- sqrt((prop_male * (1-prop_male) / num_male) + (prop_female * (1-prop_female)/num_female))
+z_score <- 1.96
+
+additive <- error * z_score
+```
+
+### **Part A**
+
+The number of male students in the dataset is `r num_male`, while the number of female students in the dataset is `r num_female`. The proportion of male students who folded their left arm on top was `r round(prop_male,2)`, while the proportion of females who folded their left arm on top was `r round(prop_female, 2)`. 
+
+### **Part B**
+
+The observed difference in proportions between the two groups was `r round(prop_diff,2)`
+
+### **Part C**
+```{r}
+data$Sex <- relevel(factor(data$Sex), ref = "Male")
+prop.test(LonR_fold ~ Sex, data=data, success = 1)
+```
+
+The formula for standard error for difference in proportions is the square root of all of the proportion of the event occurring in category one times one minus that proportion divided by the population of that category added by this equation using the second category. For the proportion for group one, I used `r round(prop_male,2)`, multiplied by `r 1 - round(prop_male,2)` then for that population I used, `r num_male`. For the second category's proportion I used `r round(prop_female, 2)` multiplied by `r 1 - round(prop_female,2)` and for the population I used `r num_female`. I took the square root of this to get the standard error of `r round(error,2)`. I then multiplied the z score of 1.96, to represent a 95% confidence interval, to the error to get `r round(additive,2)`. Adding this to the sample proportion, we get an upper bound of `r round(prop_diff + additive, 2)`; subtrating this from the sample proportion we get a lower bound of `r round(prop_diff - additive,2)`.
+
+### **Part D**
+
+If we were to take many samples of this population, we would expect 95% of samples to contain the sample difference in proportion to be contained in the interval (-0.08, 0.18).
+
+### **Part E**
+
+The standard error I calculated above of `r round(error,2)`, represents that on average, we would expect that for any single same sized sample we took from the same population, the difference in proportion of male left arm crossing and female left arm crossing to be `r round(error,2)`.
+
+### **Part F**
+
+In this context, the term sampling distribution refers to the distribution of difference in proportions of left arm folding between males and females if we took many samples. The sample size and the population remain the same for every sample, while the individuals sampled, and therefore the difference in proportions change for every 
+
+### **Part G**
+
+The mathematical theorem that justifies using a normal distribution is the central limit theorem, this essentially refers to the fact that if sample sizes are large enough, that that sampling distribution of the parameter will be normal, both samples here are well above 30, so we can assume the distribution will be normal.
+
+### **Part H**
+
+If the 95% confidence interval was (-0.01, 0.30), I would say that this is not practically significant to prove that there is no difference in proportions. This is because it is centered so far away from 0 that a different sample could very well prove otherwise. More investigation would be needed.
+
+### **Part I**
+
+The confidence interval would be different across many samples due to the nature of each sample proportion being different, and therefore every confidence interval being centered at a different location. It should be true about all intervals (assuming a 95% confidence interval is used) that 95% of the intervals contain the true population proportion.
+
+# **Problem 2**
+
+```{r}
+data = read.csv('turnout.csv')
+
+prop_call <- sum(data$GOTV_call == 1 & data$voted1998 == 1) / sum(data$GOTV_call == 1)
+prop_nocall <- sum(data$GOTV_call == 0 & data$voted1998 == 1) / sum(data$GOTV_call == 0)
+```
+
+### **Part A**
+
+The proportion of those receiving a GOTV call who voted in 1998 was `r round(prop_call,2)` and the proportion of those who did not receive a call who voted in 1998 was `r round(prop_nocall,2)`. 
+
+```{r}
+data$GOTV_call <- factor(data$GOTV_call, levels = c(1, 0)) 
+prop.test(voted1998 ~ GOTV_call, data=data, success = 1)
+```
+
+The difference in proportions of people voting in 1998 between those who recieved a call and those who did not was between (0.14 and 0.26) with 95% confidence. 
+
+### **Part B**
+
+```{r}
+#voted1996
+
+data %>%
+   group_by(GOTV_call) %>%
+   filter(n() > 1) %>%
+   summarise(Count = n(), prop_vote1996 = mean(voted1996))
+
+data %>%
+   group_by(voted1998) %>%
+   filter(n() > 1) %>%
+   summarise(Count = n(), prop_vote1996 = mean(voted1996))
+
+
+prop.test(voted1998 ~ voted1996, data=data, success = 1)
+```
+
+As can be seen above, the proportion of people who voted in 1998 and were called was greater among the group who voted in 1996, showing that this variable is confounding. The confidence interval for this difference in proportions test resulted in a confidence interval of  (-0.43, -0.39), very convincing evidence of a difference in those who voted in the previous election.
+
+```{r}
+#AGE
+
+data %>%
+   group_by(GOTV_call) %>%
+   filter(n() > 1) %>%
+   summarise(Count = n(), Average_Age = mean(AGE))
+
+data %>%
+   group_by(voted1998) %>%
+   filter(n() > 1) %>%
+   summarise(Count = n(), Average_Age = mean(AGE))
+
+t.test(AGE ~ voted1998, data=data)
+```
+
+This demonstrates that the average age of those who were called and voted in 1998 was higher than those who didn't, this shows that age is another confounding variable. A confidence interval for a difference in means test resulted in a confidence interval of (-11.2, -9.8), another case of very convincing evidence of a connection between age and likelihood of voting.
+
+```{r}
+#MAJORPTY
+
+data %>%
+   group_by(GOTV_call) %>%
+   filter(n() > 1) %>%
+   summarise(Count = n(), Prop_majparty = mean(MAJORPTY))
+
+
+data %>%
+   group_by(voted1998) %>%
+   filter(n() > 1) %>%
+   summarise(Count = n(), Prop_majparty = mean(MAJORPTY))
+
+prop.test(voted1998 ~ MAJORPTY, data=data, success = 1)
+```
+
+This chart above shows that the proportion of people who were called and voted in 1998 was higher among those that were registered member of either of the two major political parties, showing this is another confounding variable. A confidence interval for difference in proportions resulted in an interval of (-0.15, -0.11), showing clearly that there is a difference in voting percentage for those registered to a major party and those not.
+
+### **Part C**
+
+```{r}
+my_data <- read.csv('turnout.csv')
+call_match <- matchit(GOTV_call ~ voted1996 + AGE + MAJORPTY, 
+                    data = my_data, 
+                    ratio = 5)
+
+call_matched = match.data(call_match)
+
+#voted1996
+mean(call_matched$voted1996[call_matched$GOTV_call == 1], na.rm = TRUE) - 
+mean(call_matched$voted1996[call_matched$GOTV_call == 0], na.rm = TRUE)
+
+#AGE
+mean(call_matched$AGE[call_matched$GOTV_call == 1], na.rm = TRUE) - 
+mean(call_matched$AGE[call_matched$GOTV_call == 0], na.rm = TRUE)
+
+#MAJORPTY
+mean(call_matched$MAJORPTY[call_matched$GOTV_call == 1], na.rm = TRUE) - 
+mean(call_matched$MAJORPTY[call_matched$GOTV_call == 0], na.rm = TRUE)
+```
+
+We can see above that the matched dataset has negligible differences between the groups that were called and the groups that were not called to vote in the 1998 election, with the first difference being if the person voted in 1996, the second being age, and the last being registered to a majority party.
+
+```{r}
+prop_call_matched<- sum(call_matched$GOTV_call == 1 & call_matched$voted1998 == 1) / sum(call_matched$GOTV_call == 1)
+prop_nocall_matched <- sum(call_matched$GOTV_call == 0 & call_matched$voted1998 == 1) / sum(call_matched$GOTV_call == 0)
+```
+
+The proportion of those receiving a GOTV call who voted in 1998 in the matched data was `r round(prop_call_matched,2)` and the proportion of those who did not receive a call who voted in 1998 was `r round(prop_nocall_matched,2)`.
+
+```{r}
+call_matched$GOTV_call <- factor(call_matched$GOTV_call, levels = c(1, 0)) 
+prop.test(voted1998 ~ GOTV_call, data=call_matched, success = 1)
+```
+
+It appears that even through matching, that receiving a call increased the likelihood of any one person voting, as shown by the difference in proportion 95% confidence interval (0.01, 0.15). The lower section of the interval is very close to 0, so I would not be completely sure, but there is strong evidence.
